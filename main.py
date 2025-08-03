@@ -1,14 +1,14 @@
 from telegram import Update
-from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, ContextTypes, filters
-import os
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-BOT_TOKEN = 8211367936:AAHS--KZH3uGDe6Wke6egtZ9cEiI1hRUgg4
+BOT_TOKEN = "اینجا_توکن_ربات_رو_مستقیم_بذار"  # یا از os.getenv استفاده کن اگر در Render ست کردی
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("سلام! ربات فعاله.")
+    await update.message.reply_text("✅ ربات فعال است.")
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(update.message.text)
+    if update.message.text:
+        await update.message.reply_text(f"📩 متن شما: {update.message.text}")
 
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
