@@ -1,59 +1,50 @@
-
-import os
-import re
-from telegram import Update, File
-from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 from flask import Flask, send_from_directory
-import threading
+from telegram.ext import Updater, MessageHandler, Filters
+import os
 
-# توکن ربات از متغیر محیطی
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+# توکن ربات (مستقیماً اینجا قرار گرفته، می‌تونی از متغیر محیطی هم بخونی)
+BOT_TOKEN = "توکن_اینجا_بذار"
 
-# مسیر ذخیره‌سازی فایل‌ها
+# پوشه ذخیره فایل‌ها
 DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# راه‌اندازی اپ Flask برای سرو فایل‌ها
+# ربات تلگرام
+updater = Updater(BOT_TOKEN, use_context=True)
+dispatcher = updater.dispatcher
+
+def handle_file(update, context):
+    file = update.message.document or update.message.video
+    if not file:
+        update.message.reply_text("❌ فایل پشتیبانی نمی‌شود.")
+        return
+
+    file_obj = context.bot.get_file(file.file_id)
+    filename = file.file_name or f"{file.file_unique_id}.bin"
+    filepath = os.path.join(DOWNLOAD_DIR, filename)
+    file_obj.download(filepath)
+
+    # ساخت لینک مستقیم از سرور
+    base_url = os.getenv("RENDER_EXTERNAL_URL", "http://localhost:8000")
+    download_link = f"{base_url}/files/{filename}"
+    update.message.reply_text(f"✅ لینک مستقیم:\n{download_link}")
+
+# هندل پیام‌ها
+dispatcher.add_handler(MessageHandler(Filters.document | Filters.video, handle_file))
+
+# شروع ربات
+updater.start_polling()
+
+# سرور Flask برای ارائه فایل‌ها
 app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "✅ ربات تلگرام آپلودر فعال است!"
 
 @app.route('/files/<path:filename>')
 def serve_file(filename):
-    return send_from_directory(DOWNLOAD_DIR, filename, as_attachment=True)
+    return send_from_directory(DOWNLOAD_DIR, filename)
 
-# هندل پیام‌ها
-async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg = update.message
-    tg = msg.document or msg.video or msg.audio or msg.voice or (msg.photo and msg.photo[-1])
-
-    if tg:
-        # دانلود فایل از تلگرام
-        file_obj: File = await tg.get_file()
-        if hasattr(tg, 'file_name') and tg.file_name:
-            fname = tg.file_name
-        else:
-            fname = f"{msg.message_id}.bin"
-        local_path = os.path.join(DOWNLOAD_DIR, fname)
-        await file_obj.download_to_drive(local_path)
-
-        # ساخت لینک مستقیم برای فایل
-        domain = os.getenv('RENDER_EXTERNAL_URL', '').rstrip('/')
-        link = f"{domain}/files/{fname}"
-        await msg.reply_text(f"✅ لینک مستقیم فایل:\n{link}")
-        return
-
-    # اگر فایل نبود، بررسی لینک پیام تلگرام
-    text = (msg.text or "") + " " + (msg.caption or "")
-    if re.search(r'https?://t\.me/\S+', text):
-        await msg.reply_text(
-            "❗️ این فقط یک لینک به پیام تلگرامه.\n"
-            "لطفاً خود فایل رو مستقیماً ارسال یا فوروارد کن."
-        )
-    else:
-        await msg.reply_text("📎 لطفاً یک فایل (عکس، ویدیو، سند و...) ارسال یا فوروارد کن.")
-
-# اجرای Flask و ربات به‌صورت موازی
-if __name__ == "__main__":
-    threading.Thread(target=lambda: app.run(host="0.0.0.0", port=8000)).start()
-    bot = ApplicationBuilder().token(BOT_TOKEN).build()
-    bot.add_handler(MessageHandler(filters.ALL, handle_file))
-    bot.run_polling()
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8000)
