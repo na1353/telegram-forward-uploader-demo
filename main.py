@@ -1,3 +1,4 @@
+
 import os
 import re
 from telegram import Update, File
@@ -13,7 +14,7 @@ DOWNLOAD_DIR = "downloads"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
 # راه‌اندازی اپ Flask برای سرو فایل‌ها
-app = Flask(_name_)
+app = Flask(__name__)
 
 @app.route('/files/<path:filename>')
 def serve_file(filename):
@@ -51,7 +52,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text("📎 لطفاً یک فایل (عکس، ویدیو، سند و...) ارسال یا فوروارد کن.")
 
 # اجرای Flask و ربات به‌صورت موازی
-if _name_== "_main_":
+if __name__ == "__main__":
     threading.Thread(target=lambda: app.run(host="0.0.0.0", port=8000)).start()
     bot = ApplicationBuilder().token(BOT_TOKEN).build()
     bot.add_handler(MessageHandler(filters.ALL, handle_file))
